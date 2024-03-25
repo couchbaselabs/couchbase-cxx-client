@@ -125,6 +125,7 @@ set(couchbase_cxx_client_FILES
     core/impl/disjunction_query.cxx
     core/impl/dns_srv_tracker.cxx
     core/impl/doc_id_query.cxx
+    core/impl/error_context_to_json.cxx
     core/impl/expiry.cxx
     core/impl/fail_fast_retry_strategy.cxx
     core/impl/field_level_encryption_error_category.cxx
@@ -135,6 +136,7 @@ set(couchbase_cxx_client_FILES
     core/impl/internal_date_range_facet_result.cxx
     core/impl/internal_manager_error_context.cxx
     core/impl/internal_numeric_range_facet_result.cxx
+    core/impl/internal_operation_error_context.cxx
     core/impl/internal_search_error_context.cxx
     core/impl/internal_search_meta_data.cxx
     core/impl/internal_search_result.cxx
@@ -157,6 +159,7 @@ set(couchbase_cxx_client_FILES
     core/impl/numeric_range_query.cxx
     core/impl/observe_poll.cxx
     core/impl/observe_seqno.cxx
+    core/impl/operation_error_context.cxx
     core/impl/phrase_query.cxx
     core/impl/prefix_query.cxx
     core/impl/query.cxx

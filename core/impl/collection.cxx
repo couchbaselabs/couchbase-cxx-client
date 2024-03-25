@@ -45,8 +45,22 @@
 
 #include <memory>
 
+#include "internal_operation_error_context.hxx"
+
 namespace couchbase
 {
+namespace
+{
+
+couchbase::error
+key_value_error_context_to_error(const key_value_error_context& ctx)
+{
+    return { ctx.ec(),
+             ctx.ec().message(),
+             operation_error_context{ internal_operation_error_context{ core::impl::key_value_error_context_to_json(ctx) } } };
+}
+} // namespace
+
 class collection_impl : public std::enable_shared_from_this<collection_impl>
 {
   public:
@@ -111,6 +125,44 @@ class collection_impl : public std::enable_shared_from_this<collection_impl>
                   expiry_time.emplace(std::chrono::seconds{ resp.expiry.value() });
               }
               return handler(std::move(resp.ctx), get_result{ resp.cas, { std::move(resp.value), resp.flags }, expiry_time });
+          });
+    }
+
+    void get_with_error(std::string document_key, get_options::built options, get_with_error_handler&& handler) const
+    {
+        if (!options.with_expiry && options.projections.empty()) {
+            return core_.execute(
+              core::operations::get_request{
+                core::document_id{ bucket_name_, scope_name_, name_, std::move(document_key) },
+                {},
+                {},
+                options.timeout,
+                { options.retry_strategy },
+              },
+              [handler = std::move(handler)](auto resp) mutable {
+                  return handler(key_value_error_context_to_error(resp.ctx),
+                                 get_result{ resp.cas, { std::move(resp.value), resp.flags }, {} });
+              });
+        }
+        return core_.execute(
+          core::operations::get_projected_request{
+            core::document_id{ bucket_name_, scope_name_, name_, std::move(document_key) },
+            {},
+            {},
+            options.projections,
+            options.with_expiry,
+            {},
+            false,
+            options.timeout,
+            { options.retry_strategy },
+          },
+          [handler = std::move(handler)](auto resp) mutable {
+              std::optional<std::chrono::system_clock::time_point> expiry_time{};
+              if (resp.expiry && resp.expiry.value() > 0) {
+                  expiry_time.emplace(std::chrono::seconds{ resp.expiry.value() });
+              }
+              return handler(key_value_error_context_to_error(resp.ctx),
+                             get_result{ resp.cas, { std::move(resp.value), resp.flags }, expiry_time });
           });
     }
 
@@ -1064,6 +1116,23 @@ collection::get(std::string document_id, const get_options& options) const -> st
     auto barrier = std::make_shared<std::promise<std::pair<key_value_error_context, get_result>>>();
     auto future = barrier->get_future();
     get(std::move(document_id), options, [barrier](auto ctx, auto result) { barrier->set_value({ std::move(ctx), std::move(result) }); });
+    return future;
+}
+
+void
+collection::get_with_error(std::string document_id, const get_options& options, get_with_error_handler&& handler) const
+{
+    return impl_->get_with_error(std::move(document_id), options.build(), std::move(handler));
+}
+
+auto
+collection::get_with_error(std::string document_id, const get_options& options) const -> std::future<std::pair<error, get_result>>
+{
+    auto barrier = std::make_shared<std::promise<std::pair<error, get_result>>>();
+    auto future = barrier->get_future();
+    get_with_error(std::move(document_id), options, [barrier](auto ctx, auto result) {
+        barrier->set_value({ std::move(ctx), std::move(result) });
+    });
     return future;
 }
 

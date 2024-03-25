@@ -18,6 +18,7 @@
 #pragma once
 
 #include <couchbase/common_options.hxx>
+#include <couchbase/error.hxx>
 #include <couchbase/get_result.hxx>
 #include <couchbase/key_value_error_context.hxx>
 
@@ -106,4 +107,5 @@ struct get_options : public common_options<get_options> {
  * @uncommitted
  */
 using get_handler = std::function<void(couchbase::key_value_error_context, get_result)>;
+using get_with_error_handler = std::function<void(couchbase::error, get_result)>;
 } // namespace couchbase
